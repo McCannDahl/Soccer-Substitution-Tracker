@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
-        android:label="soccersubstitutiontracker"
+        android:label="Soccer Sub Tracker"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

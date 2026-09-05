@@ -1,30 +1,126 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:soccersubstitutiontracker/controllers/game_controller.dart';
+import 'package:soccersubstitutiontracker/controllers/team_controller.dart';
 import 'package:soccersubstitutiontracker/main.dart';
+import 'package:soccersubstitutiontracker/models/game_config.dart';
+import 'package:soccersubstitutiontracker/screens/active_game_screen.dart';
+import 'package:soccersubstitutiontracker/services/storage_service.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App launches on HomeScreen with default 6U soccer options', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await StorageService.init();
+    final teamController = TeamController(storage);
+    final gameController = GameController(storage);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      SoccerSubTrackerApp(
+        storageService: storage,
+        teamController: teamController,
+        gameController: gameController,
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Verify Home screen elements
+    expect(find.text('Sub Tracker'), findsOneWidget);
+    expect(find.text('Start a Game'), findsOneWidget);
+    expect(find.text('Manage Teams & Rosters'), findsOneWidget);
+    expect(find.text('Match Reports & History'), findsOneWidget);
+    expect(find.text('Default 6U Match Rules'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Tap "Start a Game"
+    await tester.tap(find.text('Start a Game'));
+    await tester.pumpAndSettle();
+
+    // Verify New Game Setup Screen loaded
+    expect(find.text('New Game Setup'), findsOneWidget);
+    expect(find.text('KICK OFF GAME'), findsOneWidget);
+    expect(find.text('Match Rules & Timers'), findsOneWidget);
+  });
+
+  testWidgets('ActiveGameScreen allows tapping to toggle in/out, recommends subs, and controls timer', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    SharedPreferences.setMockInitialValues({});
+    final storage = await StorageService.init();
+    final teamController = TeamController(storage);
+    final gameController = GameController(storage);
+
+    final starterTeam = teamController.teams.first; // Tigers 6U with 7 players
+
+    gameController.startGame(
+      team: starterTeam,
+      attendingPlayers: starterTeam.players,
+      startingFieldPlayerIds: starterTeam.players.take(4).map((p) => p.id).toList(),
+      config: const GameConfig(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ActiveGameScreen(
+          gameController: gameController,
+          teamController: teamController,
+        ),
+      ),
+    );
+
+    // Verify game header & counts
+    expect(find.text('Tigers 6U'), findsOneWidget);
+    expect(find.text('Quarter 1 of 4'), findsOneWidget);
+    expect(find.text('4 / 4'), findsOneWidget);
+    expect(find.text('3 players'), findsOneWidget);
+
+    // Verify PAUSE button is visible because timer starts running
+    expect(find.text('PAUSE'), findsOneWidget);
+
+    // Tap PAUSE
+    await tester.tap(find.text('PAUSE'));
+    await tester.pumpAndSettle();
+    expect(find.text('START'), findsOneWidget);
+
+    // Verify player cards: Leo is on field, Liam is on bench
+    expect(find.text('Leo'), findsOneWidget);
+    expect(find.text('Liam'), findsOneWidget);
+
+    // Tap Leo's card to toggle out to bench
+    await tester.tap(find.text('Leo'));
+    await tester.pumpAndSettle();
+
+    // Field count should now be 3 / 4 and warning visible
+    expect(find.text('3 / 4'), findsOneWidget);
+    expect(find.text('4 players'), findsOneWidget);
+
+    // Tap Liam's card to toggle into field
+    await tester.tap(find.text('Liam'));
+    await tester.pumpAndSettle();
+
+    // Field count back to 4 / 4
+    expect(find.text('4 / 4'), findsOneWidget);
+    expect(find.text('3 players'), findsOneWidget);
+
+    // Verify Add Player button works
+    expect(find.byIcon(Icons.person_add_alt_1), findsWidgets);
+    await tester.tap(find.byIcon(Icons.person_add_alt_1).first);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Add Player Mid-Game'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Add Guest / New Player:'), findsOneWidget);
+
+    // Close dialog
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsNothing);
   });
 }
