@@ -159,7 +159,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
-                labelText: 'Team Name (e.g. Tigers 6U)',
+                labelText: 'Team Name (e.g. Rainbow Fire)',
                 prefixIcon: Icon(Icons.shield_outlined),
                 border: OutlineInputBorder(),
               ),

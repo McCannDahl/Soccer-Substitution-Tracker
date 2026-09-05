@@ -51,7 +51,7 @@ void main() {
     final teamController = TeamController(storage);
     final gameController = GameController(storage);
 
-    final starterTeam = teamController.teams.first; // Tigers 6U with 7 players
+    final starterTeam = teamController.teams.first; // Rainbow Fire with 9 players
 
     gameController.startGame(
       team: starterTeam,
@@ -70,10 +70,10 @@ void main() {
     );
 
     // Verify game header & counts
-    expect(find.text('Tigers 6U'), findsOneWidget);
+    expect(find.text('Rainbow Fire'), findsOneWidget);
     expect(find.text('Quarter 1 of 4'), findsOneWidget);
     expect(find.text('4 / 4'), findsOneWidget);
-    expect(find.text('3 players'), findsOneWidget);
+    expect(find.text('5 players'), findsOneWidget);
 
     // Verify PAUSE button is visible because timer starts running
     expect(find.text('PAUSE'), findsOneWidget);
@@ -83,25 +83,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('START'), findsOneWidget);
 
-    // Verify player cards: Leo is on field, Liam is on bench
-    expect(find.text('Leo'), findsOneWidget);
-    expect(find.text('Liam'), findsOneWidget);
+    // Verify player cards: KT is on field, Clayton is on bench
+    expect(find.text('KT'), findsOneWidget);
+    expect(find.text('Clayton'), findsOneWidget);
 
-    // Tap Leo's card to toggle out to bench
-    await tester.tap(find.text('Leo'));
+    // Tap KT's card to toggle out to bench
+    await tester.tap(find.text('KT'));
     await tester.pumpAndSettle();
 
     // Field count should now be 3 / 4 and warning visible
     expect(find.text('3 / 4'), findsOneWidget);
-    expect(find.text('4 players'), findsOneWidget);
+    expect(find.text('6 players'), findsOneWidget);
 
-    // Tap Liam's card to toggle into field
-    await tester.tap(find.text('Liam'));
+    // Tap Clayton's card to toggle into field
+    await tester.tap(find.text('Clayton'));
     await tester.pumpAndSettle();
 
     // Field count back to 4 / 4
     expect(find.text('4 / 4'), findsOneWidget);
-    expect(find.text('3 players'), findsOneWidget);
+    expect(find.text('5 players'), findsOneWidget);
 
     // Verify Add Player button works
     expect(find.byIcon(Icons.person_add_alt_1), findsWidgets);

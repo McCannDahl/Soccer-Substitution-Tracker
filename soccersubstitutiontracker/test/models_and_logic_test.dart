@@ -393,7 +393,7 @@ void main() {
       final teamController1 = TeamController(storage1);
       final gameController1 = GameController(storage1);
 
-      final team = teamController1.teams.first; // Tigers 6U
+      final team = teamController1.teams.first; // Rainbow Fire
       gameController1.startGame(
         team: team,
         attendingPlayers: team.players,
@@ -424,7 +424,7 @@ void main() {
       // Verify active game exists and is fully restored
       expect(gameController2.hasActiveGame, isTrue);
       final recoveredSession = gameController2.session!;
-      expect(recoveredSession.teamName, equals('Tigers 6U'));
+      expect(recoveredSession.teamName, equals('Rainbow Fire'));
       expect(recoveredSession.currentPeriod, equals(1));
       expect(recoveredSession.periodSecondsRemaining, equals(420));
       expect(recoveredSession.isTimerRunning, isFalse); // Paused safely on restore

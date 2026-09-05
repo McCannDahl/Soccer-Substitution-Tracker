@@ -10,7 +10,7 @@ class StorageService {
   static const String _configKey = 'soccer_game_config_v1';
   static const String _activeGameKey = 'soccer_active_game_v1';
   static const String _gameHistoryKey = 'soccer_game_history_v1';
-  static const String _seededKey = 'soccer_has_seeded_initial_v1';
+  static const String _seededKey = 'soccer_has_seeded_rainbow_fire_v3';
 
   final SharedPreferences _prefs;
 
@@ -27,24 +27,35 @@ class StorageService {
     final hasSeeded = _prefs.getBool(_seededKey) ?? false;
     if (!hasSeeded) {
       final teams = getTeams();
-      if (teams.isEmpty) {
-        // Seed a starter 6U soccer team so the user has an immediate sample team ready
-        final starterTeam = Team(
-          id: 'team_tigers_6u',
-          name: 'Tigers 6U',
-          createdAt: DateTime.now(),
-          players: const [
-            Player(id: 'p1', name: 'Leo', number: 7),
-            Player(id: 'p2', name: 'Maya', number: 10),
-            Player(id: 'p3', name: 'Noah', number: 4),
-            Player(id: 'p4', name: 'Emma', number: 9),
-            Player(id: 'p5', name: 'Liam', number: 11),
-            Player(id: 'p6', name: 'Ava', number: 3),
-            Player(id: 'p7', name: 'Lucas', number: 8),
-          ],
-        );
-        await saveTeam(starterTeam);
+      // Remove placeholder tigers if present
+      teams.removeWhere((t) => t.id == 'team_tigers_6u');
+
+      final starterTeam = Team(
+        id: 'team_rainbow_fire',
+        name: 'Rainbow Fire',
+        createdAt: DateTime.now(),
+        players: const [
+          Player(id: 'p1', name: 'KT', number: 1),
+          Player(id: 'p2', name: 'Abi', number: 2),
+          Player(id: 'p3', name: 'Melo', number: 3),
+          Player(id: 'p4', name: 'Alfredo', number: 4),
+          Player(id: 'p5', name: 'Clayton', number: 5),
+          Player(id: 'p6', name: 'Daemon', number: 6),
+          Player(id: 'p7', name: 'Harrison', number: 7),
+          Player(id: 'p8', name: 'Jaxon', number: 8),
+          Player(id: 'p9', name: 'Luka', number: 9),
+        ],
+      );
+
+      final existingIdx = teams.indexWhere((t) => t.id == 'team_rainbow_fire');
+      if (existingIdx >= 0) {
+        teams[existingIdx] = starterTeam;
+      } else {
+        teams.insert(0, starterTeam);
       }
+
+      final encoded = teams.map((t) => jsonEncode(t.toJson())).toList();
+      await _prefs.setStringList(_teamsKey, encoded);
       await _prefs.setBool(_seededKey, true);
     }
   }
