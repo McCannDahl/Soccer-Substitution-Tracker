@@ -20,6 +20,63 @@ class HomeScreen extends StatelessWidget {
     required this.gameController,
   });
 
+  void _onStartGamePressed(BuildContext context) {
+    if (gameController.hasActiveGame) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Game Already in Progress'),
+          content: Text(
+            'A match for "${gameController.session?.teamName}" is currently active. Would you like to resume it, or start a new match (this will discard the current game)?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ActiveGameScreen(
+                      gameController: gameController,
+                      teamController: teamController,
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Resume Active Game'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GameSetupScreen(
+                      teamController: teamController,
+                      gameController: gameController,
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Start New Match'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GameSetupScreen(
+            teamController: teamController,
+            gameController: gameController,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -160,17 +217,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(20),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GameSetupScreen(
-                            teamController: teamController,
-                            gameController: gameController,
-                          ),
-                        ),
-                      );
-                    },
+                    onTap: () => _onStartGamePressed(context),
                     child: Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(

@@ -352,4 +352,159 @@ void main() {
       expect(teamController.teams.any((t) => t.id == team.id), isFalse);
     });
   });
+
+  group('Persistence & Crash-Recovery Verification Tests', () {
+    test('teams and players survive simulated app kill and phone reboot', () async {
+      // 1. Initial boot: empty prefs
+      final mockData = <String, Object>{};
+      SharedPreferences.setMockInitialValues(mockData);
+
+      final storage1 = await StorageService.init();
+      final teamController1 = TeamController(storage1);
+
+      // Create custom team with 5 players
+      final createdTeam = await teamController1.createTeam('Dragons 6U', const [
+        Player(id: 'd1', name: 'Mason', number: 10),
+        Player(id: 'd2', name: 'Chloe', number: 5),
+      ]);
+      await teamController1.addPlayer(
+        createdTeam.id,
+        const Player(id: 'd3', name: 'Zack', number: 8),
+      );
+
+      expect(teamController1.teams.any((t) => t.name == 'Dragons 6U'), isTrue);
+
+      // 2. SIMULATE REBOOT: All memory dropped, new StorageService reading the same underlying disk storage
+      final storage2 = await StorageService.init();
+      final teamController2 = TeamController(storage2);
+
+      final recoveredTeam =
+          teamController2.teams.firstWhere((t) => t.id == createdTeam.id);
+      expect(recoveredTeam.name, equals('Dragons 6U'));
+      expect(recoveredTeam.players.length, equals(3));
+      expect(recoveredTeam.players.map((p) => p.name), containsAll(['Mason', 'Chloe', 'Zack']));
+    });
+
+    test('midgame crash recovery restores exact game clock, active shift times, and player statuses', () async {
+      final mockData = <String, Object>{};
+      SharedPreferences.setMockInitialValues(mockData);
+
+      final storage1 = await StorageService.init();
+      final teamController1 = TeamController(storage1);
+      final gameController1 = GameController(storage1);
+
+      final team = teamController1.teams.first; // Tigers 6U
+      gameController1.startGame(
+        team: team,
+        attendingPlayers: team.players,
+        startingFieldPlayerIds: ['p1', 'p2', 'p3', 'p4'],
+        config: const GameConfig(periodDurationMinutes: 10, playersOnField: 4),
+      );
+
+      // Simulate 3 minutes (180 seconds) of play time
+      gameController1.adjustGameTime(-180); // 420s remaining
+      gameController1.adjustPlayerTime('p1', 180);
+      gameController1.adjustPlayerTime('p2', 180);
+      // Perform a sub mid-game: swap p1 out for p5
+      gameController1.executeSub('p1', 'p5');
+      // Sidelined injury: p2 injured
+      gameController1.markPlayerInjured('p2', note: 'Twisted ankle');
+
+      expect(gameController1.session!.onFieldPlayers.length, equals(3));
+      expect(gameController1.session!.injuredPlayers.length, equals(1));
+      expect(gameController1.session!.periodSecondsRemaining, equals(420));
+
+      // 2. SIMULATE APP CRASH / KILLED BY OS
+      gameController1.dispose();
+
+      // 3. REBOOT APP: Fresh instances created
+      final storage2 = await StorageService.init();
+      final gameController2 = GameController(storage2);
+
+      // Verify active game exists and is fully restored
+      expect(gameController2.hasActiveGame, isTrue);
+      final recoveredSession = gameController2.session!;
+      expect(recoveredSession.teamName, equals('Tigers 6U'));
+      expect(recoveredSession.currentPeriod, equals(1));
+      expect(recoveredSession.periodSecondsRemaining, equals(420));
+      expect(recoveredSession.isTimerRunning, isFalse); // Paused safely on restore
+
+      // Check player statuses recovered identically
+      final p1 = recoveredSession.players.firstWhere((p) => p.playerId == 'p1');
+      final p2 = recoveredSession.players.firstWhere((p) => p.playerId == 'p2');
+      final p5 = recoveredSession.players.firstWhere((p) => p.playerId == 'p5');
+
+      expect(p1.isOnBench, isTrue);
+      expect(p1.totalPlayedSeconds, equals(180));
+      expect(p2.isInjured, isTrue);
+      expect(p2.injuryNote, equals('Twisted ankle'));
+      expect(p5.isOnField, isTrue);
+
+      // Verify game can be resumed cleanly
+      gameController2.resumeTimer();
+      expect(gameController2.isTimerRunning, isTrue);
+
+      gameController2.dispose();
+    });
+
+    test('match history persists across app restarts after final whistle', () async {
+      final mockData = <String, Object>{};
+      SharedPreferences.setMockInitialValues(mockData);
+
+      final storage1 = await StorageService.init();
+      final gameController1 = GameController(storage1);
+      final team = (await StorageService.init()).getTeams().first;
+
+      gameController1.startGame(
+        team: team,
+        attendingPlayers: team.players,
+        startingFieldPlayerIds: ['p1', 'p2', 'p3', 'p4'],
+        config: const GameConfig(),
+      );
+
+      // Coach ends match
+      gameController1.endGame();
+      expect(gameController1.hasActiveGame, isFalse);
+      gameController1.dispose();
+
+      // Reboot app
+      final storage2 = await StorageService.init();
+      final gameController2 = GameController(storage2);
+
+      expect(gameController2.hasActiveGame, isFalse);
+      final history = storage2.getGameHistory();
+      expect(history.length, equals(1));
+      expect(history.first.teamName, equals(team.name));
+      expect(history.first.isGameOver, isTrue);
+
+      gameController2.dispose();
+    });
+
+    test('custom match rules persist across app restarts', () async {
+      final mockData = <String, Object>{};
+      SharedPreferences.setMockInitialValues(mockData);
+
+      final storage1 = await StorageService.init();
+      const customRules = GameConfig(
+        periods: 2,
+        periodDurationMinutes: 12,
+        quarterBreakMinutes: 3,
+        halftimeMinutes: 6,
+        playersOnField: 5,
+        subRecommendationMinutes: 6,
+      );
+      await storage1.saveGameConfig(customRules);
+
+      // Reboot app
+      final storage2 = await StorageService.init();
+      final loadedRules = storage2.getGameConfig();
+
+      expect(loadedRules.periods, equals(2));
+      expect(loadedRules.periodDurationMinutes, equals(12));
+      expect(loadedRules.quarterBreakMinutes, equals(3));
+      expect(loadedRules.halftimeMinutes, equals(6));
+      expect(loadedRules.playersOnField, equals(5));
+      expect(loadedRules.subRecommendationMinutes, equals(6));
+    });
+  });
 }

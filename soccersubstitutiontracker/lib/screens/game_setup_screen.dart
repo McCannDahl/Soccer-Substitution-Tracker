@@ -43,6 +43,16 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   @override
   void initState() {
     super.initState();
+    final savedConfig = widget.gameController.storage.getGameConfig();
+    _periods = savedConfig.periods;
+    _periodMinutes = savedConfig.periodDurationMinutes;
+    _quarterBreakMinutes = savedConfig.quarterBreakMinutes;
+    _halftimeMinutes = savedConfig.halftimeMinutes;
+    _playersOnField = savedConfig.playersOnField;
+    _subShiftMinutes = savedConfig.subRecommendationMinutes;
+    _soundEnabled = savedConfig.soundEnabled;
+    _vibrationEnabled = savedConfig.vibrationEnabled;
+
     final teams = widget.teamController.teams;
     if (widget.preselectedTeam != null) {
       _selectedTeam = widget.preselectedTeam;
@@ -129,6 +139,8 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
       soundEnabled: _soundEnabled,
       vibrationEnabled: _vibrationEnabled,
     );
+
+    widget.gameController.storage.saveGameConfig(config);
 
     widget.gameController.startGame(
       team: _selectedTeam!,

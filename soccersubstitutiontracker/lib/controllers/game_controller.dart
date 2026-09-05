@@ -23,6 +23,7 @@ class GameController extends ChangeNotifier {
   GameSession? get session => _session;
   bool get hasActiveGame => _session != null && !_session!.isGameOver;
   bool get isTimerRunning => _session?.isTimerRunning ?? false;
+  StorageService get storage => _storage;
 
   void _loadActiveGame() {
     _session = _storage.getActiveGame();

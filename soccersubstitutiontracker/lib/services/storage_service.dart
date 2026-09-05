@@ -10,6 +10,7 @@ class StorageService {
   static const String _configKey = 'soccer_game_config_v1';
   static const String _activeGameKey = 'soccer_active_game_v1';
   static const String _gameHistoryKey = 'soccer_game_history_v1';
+  static const String _seededKey = 'soccer_has_seeded_initial_v1';
 
   final SharedPreferences _prefs;
 
@@ -23,24 +24,28 @@ class StorageService {
   }
 
   Future<void> _seedInitialDataIfNeeded() async {
-    final teams = getTeams();
-    if (teams.isEmpty) {
-      // Seed a starter 6U soccer team so the user has an immediate sample team ready
-      final starterTeam = Team(
-        id: 'team_tigers_6u',
-        name: 'Tigers 6U',
-        createdAt: DateTime.now(),
-        players: const [
-          Player(id: 'p1', name: 'Leo', number: 7),
-          Player(id: 'p2', name: 'Maya', number: 10),
-          Player(id: 'p3', name: 'Noah', number: 4),
-          Player(id: 'p4', name: 'Emma', number: 9),
-          Player(id: 'p5', name: 'Liam', number: 11),
-          Player(id: 'p6', name: 'Ava', number: 3),
-          Player(id: 'p7', name: 'Lucas', number: 8),
-        ],
-      );
-      await saveTeam(starterTeam);
+    final hasSeeded = _prefs.getBool(_seededKey) ?? false;
+    if (!hasSeeded) {
+      final teams = getTeams();
+      if (teams.isEmpty) {
+        // Seed a starter 6U soccer team so the user has an immediate sample team ready
+        final starterTeam = Team(
+          id: 'team_tigers_6u',
+          name: 'Tigers 6U',
+          createdAt: DateTime.now(),
+          players: const [
+            Player(id: 'p1', name: 'Leo', number: 7),
+            Player(id: 'p2', name: 'Maya', number: 10),
+            Player(id: 'p3', name: 'Noah', number: 4),
+            Player(id: 'p4', name: 'Emma', number: 9),
+            Player(id: 'p5', name: 'Liam', number: 11),
+            Player(id: 'p6', name: 'Ava', number: 3),
+            Player(id: 'p7', name: 'Lucas', number: 8),
+          ],
+        );
+        await saveTeam(starterTeam);
+      }
+      await _prefs.setBool(_seededKey, true);
     }
   }
 
