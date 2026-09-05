@@ -402,15 +402,23 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                           final isAttending = _attendingPlayerIds.contains(p.id);
                           return FilterChip(
                             avatar: CircleAvatar(
-                              backgroundColor: isAttending ? Colors.green.shade700 : Colors.grey,
+                              backgroundColor: isAttending ? Colors.green.shade800 : Colors.grey,
                               foregroundColor: Colors.white,
                               child: Text(
                                 p.number != null ? '${p.number}' : p.name[0],
-                                style: const TextStyle(fontSize: 10),
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                               ),
                             ),
-                            label: Text(p.name),
+                            label: Text(
+                              p.name,
+                              style: TextStyle(
+                                color: isAttending ? const Color(0xFF003300) : null,
+                                fontWeight: isAttending ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
                             selected: isAttending,
+                            selectedColor: Colors.green.shade200,
+                            checkmarkColor: const Color(0xFF003300),
                             onSelected: (selected) {
                               setState(() {
                                 if (selected) {
@@ -476,21 +484,22 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                         final isStarting = _startingFieldPlayerIds.contains(p.id);
                         return ChoiceChip(
                           avatar: CircleAvatar(
-                            backgroundColor: isStarting ? Colors.green.shade800 : Colors.blueGrey,
+                            backgroundColor: isStarting ? Colors.green.shade900 : Colors.blueGrey,
                             foregroundColor: Colors.white,
                             child: Text(
                               p.number != null ? '${p.number}' : p.name[0],
-                              style: const TextStyle(fontSize: 10),
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                             ),
                           ),
                           label: Text(
                             isStarting ? '${p.name} (Starting)' : p.name,
                             style: TextStyle(
+                              color: isStarting ? const Color(0xFF003300) : null,
                               fontWeight: isStarting ? FontWeight.bold : FontWeight.normal,
                             ),
                           ),
                           selected: isStarting,
-                          selectedColor: Colors.green.shade100,
+                          selectedColor: Colors.green.shade200,
                           onSelected: (selected) {
                             setState(() {
                               if (selected) {
