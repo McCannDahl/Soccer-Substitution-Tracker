@@ -35,15 +35,15 @@ class StorageService {
         name: 'Rainbow Fire',
         createdAt: DateTime.now(),
         players: const [
-          Player(id: 'p1', name: 'KT', number: 1, skill: 7),
+          Player(id: 'p1', name: 'KT', number: 1, skill: 5),
           Player(id: 'p2', name: 'Abi', number: 2, skill: 5),
-          Player(id: 'p3', name: 'Melo', number: 3, skill: 8),
-          Player(id: 'p4', name: 'Alfredo', number: 4, skill: 5),
+          Player(id: 'p3', name: 'Melo', number: 3, skill: 3),
+          Player(id: 'p4', name: 'Alfredo', number: 4, skill: 6),
           Player(id: 'p5', name: 'Clayton', number: 5, skill: 6),
-          Player(id: 'p6', name: 'Daemon', number: 6, skill: 4),
-          Player(id: 'p7', name: 'Harrison', number: 7, skill: 7),
-          Player(id: 'p8', name: 'Jaxon', number: 8, skill: 5),
-          Player(id: 'p9', name: 'Luka', number: 9, skill: 8),
+          Player(id: 'p6', name: 'Daemon', number: 6, skill: 7),
+          Player(id: 'p7', name: 'Harrison', number: 7, skill: 5),
+          Player(id: 'p8', name: 'Jaxon', number: 8, skill: 6),
+          Player(id: 'p9', name: 'Luka', number: 9, skill: 6),
         ],
       );
 
