@@ -23,6 +23,11 @@ class GameConfig {
   /// Whether vibration/haptic feedback is enabled.
   final bool vibrationEnabled;
 
+  /// Substitution score weights (default: 40% shift, 50% total time, 10% skill)
+  final int shiftWeight;
+  final int totalTimeWeight;
+  final int skillWeight;
+
   const GameConfig({
     this.periods = 4,
     this.periodDurationMinutes = 10,
@@ -32,6 +37,9 @@ class GameConfig {
     this.subRecommendationMinutes = 5,
     this.soundEnabled = true,
     this.vibrationEnabled = true,
+    this.shiftWeight = 40,
+    this.totalTimeWeight = 50,
+    this.skillWeight = 10,
   });
 
   GameConfig copyWith({
@@ -43,6 +51,9 @@ class GameConfig {
     int? subRecommendationMinutes,
     bool? soundEnabled,
     bool? vibrationEnabled,
+    int? shiftWeight,
+    int? totalTimeWeight,
+    int? skillWeight,
   }) {
     return GameConfig(
       periods: periods ?? this.periods,
@@ -55,6 +66,9 @@ class GameConfig {
           subRecommendationMinutes ?? this.subRecommendationMinutes,
       soundEnabled: soundEnabled ?? this.soundEnabled,
       vibrationEnabled: vibrationEnabled ?? this.vibrationEnabled,
+      shiftWeight: shiftWeight ?? this.shiftWeight,
+      totalTimeWeight: totalTimeWeight ?? this.totalTimeWeight,
+      skillWeight: skillWeight ?? this.skillWeight,
     );
   }
 
@@ -68,6 +82,9 @@ class GameConfig {
       'subRecommendationMinutes': subRecommendationMinutes,
       'soundEnabled': soundEnabled,
       'vibrationEnabled': vibrationEnabled,
+      'shiftWeight': shiftWeight,
+      'totalTimeWeight': totalTimeWeight,
+      'skillWeight': skillWeight,
     };
   }
 
@@ -82,6 +99,9 @@ class GameConfig {
           json['subRecommendationMinutes'] as int? ?? 5,
       soundEnabled: json['soundEnabled'] as bool? ?? true,
       vibrationEnabled: json['vibrationEnabled'] as bool? ?? true,
+      shiftWeight: json['shiftWeight'] as int? ?? 40,
+      totalTimeWeight: json['totalTimeWeight'] as int? ?? 50,
+      skillWeight: json['skillWeight'] as int? ?? 10,
     );
   }
 }

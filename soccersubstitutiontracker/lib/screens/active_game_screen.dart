@@ -183,6 +183,142 @@ class _ActiveGameScreenState extends State<ActiveGameScreen> {
     );
   }
 
+  void _openStrategyWeightsDialog(GameSession session) {
+    int shift = session.config.shiftWeight;
+    int total = session.config.totalTimeWeight;
+    int skill = session.config.skillWeight;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.calculate_outlined, color: Colors.indigo),
+              SizedBox(width: 8),
+              Flexible(child: Text('Substitution Strategy')),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Coaching Presets:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Default (40/50/10)'),
+                      selected: shift == 40 && total == 50 && skill == 10,
+                      onSelected: (sel) {
+                        if (sel) {
+                          setDlgState(() {
+                            shift = 40;
+                            total = 50;
+                            skill = 10;
+                          });
+                        }
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Fair Play (40/60/0)'),
+                      selected: shift == 40 && total == 60 && skill == 0,
+                      onSelected: (sel) {
+                        if (sel) {
+                          setDlgState(() {
+                            shift = 40;
+                            total = 60;
+                            skill = 0;
+                          });
+                        }
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Competitive (30/30/40)'),
+                      selected: shift == 30 && total == 30 && skill == 40,
+                      onSelected: (sel) {
+                        if (sel) {
+                          setDlgState(() {
+                            shift = 30;
+                            total = 30;
+                            skill = 40;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Shift Length Weight', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text('$shift%', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                  ],
+                ),
+                Slider(
+                  value: shift.toDouble(),
+                  min: 0,
+                  max: 100,
+                  divisions: 20,
+                  label: '$shift%',
+                  onChanged: (v) => setDlgState(() => shift = v.round()),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total Game Time Weight', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text('$total%', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                  ],
+                ),
+                Slider(
+                  value: total.toDouble(),
+                  min: 0,
+                  max: 100,
+                  divisions: 20,
+                  label: '$total%',
+                  onChanged: (v) => setDlgState(() => total = v.round()),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Player Skill Weight', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text('$skill%', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                  ],
+                ),
+                Slider(
+                  value: skill.toDouble(),
+                  min: 0,
+                  max: 100,
+                  divisions: 20,
+                  label: '$skill%',
+                  onChanged: (v) => setDlgState(() => skill = v.round()),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                widget.gameController.updateStrategyWeights(
+                  shiftWeight: shift,
+                  totalTimeWeight: total,
+                  skillWeight: skill,
+                );
+                Navigator.pop(ctx);
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _onBackPressed() {
     showDialog(
       context: context,
@@ -274,7 +410,9 @@ class _ActiveGameScreenState extends State<ActiveGameScreen> {
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (val) {
-                  if (val == 'add_player') {
+                  if (val == 'strategy') {
+                    _openStrategyWeightsDialog(session);
+                  } else if (val == 'add_player') {
                     _openAddPlayerDialog(session);
                   } else if (val == 'end_game') {
                     _confirmEndGame();
@@ -284,6 +422,16 @@ class _ActiveGameScreenState extends State<ActiveGameScreen> {
                   }
                 },
                 itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                    value: 'strategy',
+                    child: Row(
+                      children: [
+                        Icon(Icons.calculate_outlined, size: 18, color: Colors.indigo),
+                        SizedBox(width: 8),
+                        Text('Substitution Strategy / Weights'),
+                      ],
+                    ),
+                  ),
                   const PopupMenuItem(
                     value: 'add_player',
                     child: Row(
@@ -439,10 +587,13 @@ class _ActiveGameScreenState extends State<ActiveGameScreen> {
                         key: ValueKey(player.playerId),
                         player: player,
                         isRecommendedSubOut: isSubOut,
+                        subScore: session.computeSubOutScore(player),
                         subRecommendationMinutes:
                             session.config.subRecommendationMinutes,
                         onTap: () =>
                             widget.gameController.togglePlayerStatus(player.playerId),
+                        onUpdateSkill: (newSkill) => widget.gameController
+                            .updatePlayerSkill(player.playerId, newSkill),
                         onMarkInjured: () {
                           MidgamePlayerDialogs.showInjuryDialog(
                             context,
@@ -514,7 +665,7 @@ class _ActiveGameScreenState extends State<ActiveGameScreen> {
                 ),
               ),
 
-              // BENCH PLAYER LIST (Sorted: Least played time at top!)
+              // BENCH PLAYER LIST (Sorted: Highest sub-in priority at top!)
               if (bench.isEmpty)
                 const SliverToBoxAdapter(
                   child: Padding(
@@ -537,10 +688,13 @@ class _ActiveGameScreenState extends State<ActiveGameScreen> {
                         key: ValueKey(player.playerId),
                         player: player,
                         isRecommendedSubIn: isSubIn,
+                        subScore: session.computeSubInScore(player),
                         subRecommendationMinutes:
                             session.config.subRecommendationMinutes,
                         onTap: () =>
                             widget.gameController.togglePlayerStatus(player.playerId),
+                        onUpdateSkill: (newSkill) => widget.gameController
+                            .updatePlayerSkill(player.playerId, newSkill),
                         onMarkInjured: () {
                           MidgamePlayerDialogs.showInjuryDialog(
                             context,
@@ -599,6 +753,8 @@ class _ActiveGameScreenState extends State<ActiveGameScreen> {
                             .returnPlayerFromInjury(player.playerId),
                         onReturnFromInjury: () => widget.gameController
                             .returnPlayerFromInjury(player.playerId),
+                        onUpdateSkill: (newSkill) => widget.gameController
+                            .updatePlayerSkill(player.playerId, newSkill),
                         onRemovePlayer: () => widget.gameController
                             .removePlayerFromGame(player.playerId),
                       );

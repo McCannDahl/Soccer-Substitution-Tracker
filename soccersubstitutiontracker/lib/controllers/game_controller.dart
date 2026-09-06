@@ -561,6 +561,42 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updatePlayerSkill(String playerId, int newSkill) {
+    if (_session == null) return;
+    AlertService.buttonTapFeedback();
+
+    final idx = _session!.players.indexWhere((p) => p.playerId == playerId);
+    if (idx < 0) return;
+
+    final player = _session!.players[idx];
+    final updatedPlayers = List<GamePlayer>.from(_session!.players);
+    updatedPlayers[idx] = player.copyWith(skill: newSkill.clamp(1, 10));
+
+    _session = _session!.copyWith(players: updatedPlayers);
+    _storage.saveActiveGame(_session!);
+    notifyListeners();
+  }
+
+  void updateStrategyWeights({
+    required int shiftWeight,
+    required int totalTimeWeight,
+    required int skillWeight,
+  }) {
+    if (_session == null) return;
+    AlertService.buttonTapFeedback();
+
+    final updatedConfig = _session!.config.copyWith(
+      shiftWeight: shiftWeight,
+      totalTimeWeight: totalTimeWeight,
+      skillWeight: skillWeight,
+    );
+
+    _session = _session!.copyWith(config: updatedConfig);
+    _storage.saveActiveGame(_session!);
+    _storage.saveGameConfig(updatedConfig);
+    notifyListeners();
+  }
+
   void endGame() {
     if (_session == null) return;
     _timer?.cancel();

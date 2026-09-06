@@ -37,8 +37,12 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   int _subShiftMinutes = 5;
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
+  int _shiftWeight = 40;
+  int _totalTimeWeight = 50;
+  int _skillWeight = 10;
 
   bool _isConfigExpanded = false;
+  bool _isStrategyExpanded = false;
 
   @override
   void initState() {
@@ -52,6 +56,9 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
     _subShiftMinutes = savedConfig.subRecommendationMinutes;
     _soundEnabled = savedConfig.soundEnabled;
     _vibrationEnabled = savedConfig.vibrationEnabled;
+    _shiftWeight = savedConfig.shiftWeight;
+    _totalTimeWeight = savedConfig.totalTimeWeight;
+    _skillWeight = savedConfig.skillWeight;
 
     final teams = widget.teamController.teams;
     if (widget.preselectedTeam != null) {
@@ -138,6 +145,9 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
       subRecommendationMinutes: _subShiftMinutes,
       soundEnabled: _soundEnabled,
       vibrationEnabled: _vibrationEnabled,
+      shiftWeight: _shiftWeight,
+      totalTimeWeight: _totalTimeWeight,
+      skillWeight: _skillWeight,
     );
 
     widget.gameController.storage.saveGameConfig(config);
@@ -346,6 +356,148 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                           value: _vibrationEnabled,
                           onChanged: (val) => setState(() => _vibrationEnabled = val),
                           contentPadding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Substitution Strategy & Weights Card
+            Card(
+              elevation: 1,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: ExpansionTile(
+                initiallyExpanded: _isStrategyExpanded,
+                onExpansionChanged: (exp) => setState(() => _isStrategyExpanded = exp),
+                leading: const Icon(Icons.calculate_outlined, color: Colors.indigo),
+                title: const Text(
+                  'Substitution Score & Strategy',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  'Shift $_shiftWeight% • Total Time $_totalTimeWeight% • Skill $_skillWeight%',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Divider(),
+                        const Text(
+                          'Coaching Presets:',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Default (40/50/10)'),
+                              selected: _shiftWeight == 40 && _totalTimeWeight == 50 && _skillWeight == 10,
+                              onSelected: (sel) {
+                                if (sel) {
+                                  setState(() {
+                                    _shiftWeight = 40;
+                                    _totalTimeWeight = 50;
+                                    _skillWeight = 10;
+                                  });
+                                }
+                              },
+                            ),
+                            ChoiceChip(
+                              label: const Text('Fair Play (40/60/0)'),
+                              selected: _shiftWeight == 40 && _totalTimeWeight == 60 && _skillWeight == 0,
+                              onSelected: (sel) {
+                                if (sel) {
+                                  setState(() {
+                                    _shiftWeight = 40;
+                                    _totalTimeWeight = 60;
+                                    _skillWeight = 0;
+                                  });
+                                }
+                              },
+                            ),
+                            ChoiceChip(
+                              label: const Text('Competitive (30/30/40)'),
+                              selected: _shiftWeight == 30 && _totalTimeWeight == 30 && _skillWeight == 40,
+                              onSelected: (sel) {
+                                if (sel) {
+                                  setState(() {
+                                    _shiftWeight = 30;
+                                    _totalTimeWeight = 30;
+                                    _skillWeight = 40;
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Current Shift Weight Slider
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Shift Length Weight', style: TextStyle(fontWeight: FontWeight.w600)),
+                            Text('$_shiftWeight%', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                          ],
+                        ),
+                        Slider(
+                          value: _shiftWeight.toDouble(),
+                          min: 0,
+                          max: 100,
+                          divisions: 20,
+                          label: '$_shiftWeight%',
+                          onChanged: (v) => setState(() => _shiftWeight = v.round()),
+                        ),
+                        // Total Game Time Weight Slider
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Total Game Time Weight', style: TextStyle(fontWeight: FontWeight.w600)),
+                            Text('$_totalTimeWeight%', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                          ],
+                        ),
+                        Slider(
+                          value: _totalTimeWeight.toDouble(),
+                          min: 0,
+                          max: 100,
+                          divisions: 20,
+                          label: '$_totalTimeWeight%',
+                          onChanged: (v) => setState(() => _totalTimeWeight = v.round()),
+                        ),
+                        // Skill Weight Slider
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Player Skill Rating Weight', style: TextStyle(fontWeight: FontWeight.w600)),
+                            Text('$_skillWeight%', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                          ],
+                        ),
+                        Slider(
+                          value: _skillWeight.toDouble(),
+                          min: 0,
+                          max: 100,
+                          divisions: 20,
+                          label: '$_skillWeight%',
+                          onChanged: (v) => setState(() => _skillWeight = v.round()),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            '💡 Substitution Score balances how long someone has been on the field this shift, how much total game time they have had compared to teammates, and their 1-10 skill rating.',
+                            style: TextStyle(fontSize: 12, color: Colors.black87),
+                          ),
                         ),
                       ],
                     ),

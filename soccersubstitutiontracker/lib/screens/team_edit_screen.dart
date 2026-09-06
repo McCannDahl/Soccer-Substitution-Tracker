@@ -28,12 +28,12 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     _players = widget.existingTeam != null
         ? List<Player>.from(widget.existingTeam!.players)
         : [
-            const Player(id: 'p_1', name: 'Leo', number: 7),
-            const Player(id: 'p_2', name: 'Maya', number: 10),
-            const Player(id: 'p_3', name: 'Noah', number: 4),
-            const Player(id: 'p_4', name: 'Emma', number: 9),
-            const Player(id: 'p_5', name: 'Liam', number: 11),
-            const Player(id: 'p_6', name: 'Ava', number: 3),
+            const Player(id: 'p_1', name: 'Leo', number: 7, skill: 7),
+            const Player(id: 'p_2', name: 'Maya', number: 10, skill: 6),
+            const Player(id: 'p_3', name: 'Noah', number: 4, skill: 5),
+            const Player(id: 'p_4', name: 'Emma', number: 9, skill: 8),
+            const Player(id: 'p_5', name: 'Liam', number: 11, skill: 5),
+            const Player(id: 'p_6', name: 'Ava', number: 3, skill: 6),
           ];
   }
 
@@ -48,62 +48,125 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         TextEditingController(text: existingPlayer?.name ?? '');
     final playerNumberController =
         TextEditingController(text: existingPlayer?.number?.toString() ?? '');
+    int selectedSkill = existingPlayer?.skill ?? 5;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(existingPlayer == null ? 'Add Player' : 'Edit Player'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: playerNameController,
-              decoration: const InputDecoration(
-                labelText: 'Player Name',
-                border: OutlineInputBorder(),
-              ),
-              autofocus: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(existingPlayer == null ? 'Add Player' : 'Edit Player'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: playerNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Player Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: playerNumberController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Jersey # (Optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Skill Level:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.amber.shade700),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star, size: 16, color: Colors.amber),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$selectedSkill / 10',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: selectedSkill.toDouble(),
+                  min: 1,
+                  max: 10,
+                  divisions: 9,
+                  label: '$selectedSkill',
+                  onChanged: (val) {
+                    setDialogState(() {
+                      selectedSkill = val.round();
+                    });
+                  },
+                ),
+                Center(
+                  child: Text(
+                    selectedSkill >= 9
+                        ? 'Star Player (Plays longer shifts)'
+                        : (selectedSkill >= 7
+                            ? 'Advanced'
+                            : (selectedSkill >= 4 ? 'Balanced' : 'Developing')),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: selectedSkill >= 8 ? Colors.amber.shade900 : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: playerNumberController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Jersey # (Optional)',
-                border: OutlineInputBorder(),
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = playerNameController.text.trim();
+                if (name.isEmpty) return;
+                final number = int.tryParse(playerNumberController.text.trim());
+
+                setState(() {
+                  if (existingPlayer != null && index != null) {
+                    _players[index] = existingPlayer.copyWith(
+                      name: name,
+                      number: number,
+                      skill: selectedSkill,
+                    );
+                  } else {
+                    _players.add(
+                      Player(
+                        id: 'p_${DateTime.now().millisecondsSinceEpoch}_${_players.length}',
+                        name: name,
+                        number: number,
+                        skill: selectedSkill,
+                      ),
+                    );
+                  }
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final name = playerNameController.text.trim();
-              if (name.isEmpty) return;
-              final number = int.tryParse(playerNumberController.text.trim());
-
-              setState(() {
-                if (existingPlayer != null && index != null) {
-                  _players[index] = existingPlayer.copyWith(name: name, number: number);
-                } else {
-                  _players.add(
-                    Player(
-                      id: 'p_${DateTime.now().millisecondsSinceEpoch}_${_players.length}',
-                      name: name,
-                      number: number,
-                    ),
-                  );
-                }
-              });
-              Navigator.pop(ctx);
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }
@@ -214,7 +277,37 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
-                      title: Text(player.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      title: Row(
+                        children: [
+                          Flexible(
+                            child: Text(player.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.amber.shade400),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star, size: 12, color: Colors.amber),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '${player.skill}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber.shade900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                       subtitle: player.number != null ? Text('Jersey #${player.number}') : null,
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,

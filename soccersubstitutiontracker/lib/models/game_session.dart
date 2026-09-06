@@ -25,6 +25,7 @@ class GamePlayer {
   final int totalPlayedSeconds;
   final int totalBenchSeconds;
   final String? injuryNote;
+  final int skill; // Skill level from 1 to 10 (default: 5)
 
   const GamePlayer({
     required this.playerId,
@@ -36,6 +37,7 @@ class GamePlayer {
     this.totalPlayedSeconds = 0,
     this.totalBenchSeconds = 0,
     this.injuryNote,
+    this.skill = 5,
   });
 
   bool get isOnField => status == PlayerStatus.onField;
@@ -53,6 +55,7 @@ class GamePlayer {
     int? totalPlayedSeconds,
     int? totalBenchSeconds,
     String? injuryNote,
+    int? skill,
   }) {
     return GamePlayer(
       playerId: playerId ?? this.playerId,
@@ -64,6 +67,7 @@ class GamePlayer {
       totalPlayedSeconds: totalPlayedSeconds ?? this.totalPlayedSeconds,
       totalBenchSeconds: totalBenchSeconds ?? this.totalBenchSeconds,
       injuryNote: injuryNote ?? this.injuryNote,
+      skill: skill ?? this.skill,
     );
   }
 
@@ -78,6 +82,7 @@ class GamePlayer {
       'totalPlayedSeconds': totalPlayedSeconds,
       'totalBenchSeconds': totalBenchSeconds,
       'injuryNote': injuryNote,
+      'skill': skill,
     };
   }
 
@@ -95,6 +100,7 @@ class GamePlayer {
       totalPlayedSeconds: json['totalPlayedSeconds'] as int? ?? 0,
       totalBenchSeconds: json['totalBenchSeconds'] as int? ?? 0,
       injuryNote: json['injuryNote'] as String?,
+      skill: (json['skill'] as int?)?.clamp(1, 10) ?? 5,
     );
   }
 
@@ -104,6 +110,7 @@ class GamePlayer {
       name: player.name,
       number: player.number,
       status: status,
+      skill: player.skill,
     );
   }
 }
@@ -169,12 +176,104 @@ class GameSession {
     this.endTime,
   });
 
-  /// Players currently on the field, sorted by who has been playing the longest:
-  /// Primary: current shift time DESC
-  /// Secondary: total played time DESC
+  /// Computes the Sub-Out urgency score for an on-field player.
+  /// Higher score = Higher urgency to substitute OUT.
+  /// Formula: 100 * (wShift * Fshift + wTotal * Ftotal + wSkill * Fskill)
+  double computeSubOutScore(GamePlayer player) {
+    final targetShiftSeconds = (config.subRecommendationMinutes * 60).toDouble();
+    final fShift = targetShiftSeconds > 0
+        ? player.currentShiftSeconds / targetShiftSeconds
+        : 0.0;
+
+    final activePlayers = players.where((p) => !p.isInactive).toList();
+    final totalTeamPlayedSeconds = activePlayers.fold<int>(
+      0,
+      (sum, p) => sum + p.totalPlayedSeconds,
+    );
+    final avgTotalSeconds = activePlayers.isNotEmpty
+        ? totalTeamPlayedSeconds / activePlayers.length
+        : targetShiftSeconds;
+
+    final refTotalSeconds = avgTotalSeconds > targetShiftSeconds
+        ? avgTotalSeconds
+        : targetShiftSeconds;
+    final fTotal = refTotalSeconds > 0
+        ? player.totalPlayedSeconds / refTotalSeconds
+        : 0.0;
+
+    final clampedSkill = player.skill.clamp(1, 10);
+    // Neutral at 5.5. Skill 10 => 0.50 factor (stays in longer), Skill 1 => 1.50
+    final fSkill = 1.0 - ((clampedSkill - 5.5) / 4.5) * 0.5;
+
+    final weightSum = config.shiftWeight + config.totalTimeWeight + config.skillWeight;
+    final double wShift;
+    final double wTotal;
+    final double wSkill;
+    if (weightSum > 0) {
+      wShift = config.shiftWeight / weightSum;
+      wTotal = config.totalTimeWeight / weightSum;
+      wSkill = config.skillWeight / weightSum;
+    } else {
+      wShift = 0.40;
+      wTotal = 0.50;
+      wSkill = 0.10;
+    }
+
+    return 100.0 * (wShift * fShift + wTotal * fTotal + wSkill * fSkill);
+  }
+
+  /// Computes the Sub-In priority score for a bench player.
+  /// Higher score = Higher priority to enter the field.
+  double computeSubInScore(GamePlayer player) {
+    final targetShiftSeconds = (config.subRecommendationMinutes * 60).toDouble();
+    final fRest = targetShiftSeconds > 0
+        ? player.currentBenchSeconds / targetShiftSeconds
+        : 0.0;
+
+    final activePlayers = players.where((p) => !p.isInactive).toList();
+    final totalTeamPlayedSeconds = activePlayers.fold<int>(
+      0,
+      (sum, p) => sum + p.totalPlayedSeconds,
+    );
+    final avgTotalSeconds = activePlayers.isNotEmpty
+        ? totalTeamPlayedSeconds / activePlayers.length
+        : targetShiftSeconds;
+    final refTotalSeconds = avgTotalSeconds > targetShiftSeconds
+        ? avgTotalSeconds
+        : targetShiftSeconds;
+
+    final fDeficit = refTotalSeconds > 0
+        ? (2.0 - (player.totalPlayedSeconds / refTotalSeconds)).clamp(0.0, 3.0)
+        : 1.0;
+
+    final clampedSkill = player.skill.clamp(1, 10);
+    final fInSkill = clampedSkill / 5.5;
+
+    final weightSum = config.shiftWeight + config.totalTimeWeight + config.skillWeight;
+    final double wShift;
+    final double wTotal;
+    final double wSkill;
+    if (weightSum > 0) {
+      wShift = config.shiftWeight / weightSum;
+      wTotal = config.totalTimeWeight / weightSum;
+      wSkill = config.skillWeight / weightSum;
+    } else {
+      wShift = 0.40;
+      wTotal = 0.50;
+      wSkill = 0.10;
+    }
+
+    return 100.0 * (wShift * fRest + wTotal * fDeficit + wSkill * fInSkill);
+  }
+
+  /// Players currently on the field, sorted by highest SubOutScore first.
   List<GamePlayer> get onFieldPlayers {
     final list = players.where((p) => p.status == PlayerStatus.onField).toList();
     list.sort((a, b) {
+      final scoreA = computeSubOutScore(a);
+      final scoreB = computeSubOutScore(b);
+      final scoreComp = scoreB.compareTo(scoreA);
+      if ((scoreB - scoreA).abs() > 0.001) return scoreComp;
       final shiftComp = b.currentShiftSeconds.compareTo(a.currentShiftSeconds);
       if (shiftComp != 0) return shiftComp;
       return b.totalPlayedSeconds.compareTo(a.totalPlayedSeconds);
@@ -182,12 +281,14 @@ class GameSession {
     return list;
   }
 
-  /// Players currently on the bench, sorted by who needs to enter the game:
-  /// Primary: total played time ASC (least playing time goes in first)
-  /// Secondary: current bench rest time DESC (longest rested)
+  /// Players currently on the bench, sorted by highest SubInScore first.
   List<GamePlayer> get benchPlayers {
     final list = players.where((p) => p.status == PlayerStatus.bench).toList();
     list.sort((a, b) {
+      final scoreA = computeSubInScore(a);
+      final scoreB = computeSubInScore(b);
+      final scoreComp = scoreB.compareTo(scoreA);
+      if ((scoreB - scoreA).abs() > 0.001) return scoreComp;
       final totalComp = a.totalPlayedSeconds.compareTo(b.totalPlayedSeconds);
       if (totalComp != 0) return totalComp;
       return b.currentBenchSeconds.compareTo(a.currentBenchSeconds);
@@ -210,9 +311,9 @@ class GameSession {
     if (field.isEmpty || bench.isEmpty) {
       return (null, null);
     }
-    // Outgoing is the one who has played the longest this shift
+    // Outgoing is the one with highest SubOutScore
     final outgoing = field.first;
-    // Incoming is the one on the bench with the least total playing time
+    // Incoming is the one on the bench with highest SubInScore
     final incoming = bench.first;
     return (outgoing, incoming);
   }

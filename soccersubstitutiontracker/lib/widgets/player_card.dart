@@ -9,9 +9,11 @@ class PlayerCard extends StatelessWidget {
   final VoidCallback? onReturnFromInjury;
   final VoidCallback? onRemovePlayer;
   final void Function(int deltaSeconds)? onAdjustTime;
+  final void Function(int newSkill)? onUpdateSkill;
   final int subRecommendationMinutes;
   final bool isRecommendedSubOut;
   final bool isRecommendedSubIn;
+  final double? subScore;
 
   const PlayerCard({
     super.key,
@@ -21,9 +23,11 @@ class PlayerCard extends StatelessWidget {
     this.onReturnFromInjury,
     this.onRemovePlayer,
     this.onAdjustTime,
+    this.onUpdateSkill,
     this.subRecommendationMinutes = 5,
     this.isRecommendedSubOut = false,
     this.isRecommendedSubIn = false,
+    this.subScore,
   });
 
   @override
@@ -109,6 +113,30 @@ class PlayerCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.amber.shade400),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star, size: 11, color: Colors.amber),
+                              const SizedBox(width: 2),
+                              Text(
+                                '${player.skill}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber.shade900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         if (isRecommendedSubOut) ...[
                           const SizedBox(width: 6),
                           Container(
@@ -182,6 +210,27 @@ class PlayerCard extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (isOnField) ...[
+                          // Sub score pill
+                          if (subScore != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: subScore! >= 100
+                                    ? Colors.red.shade700
+                                    : (subScore! >= 75
+                                        ? Colors.orange.shade800
+                                        : Colors.green.shade700),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'Sub: ${subScore!.round()}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
                           // Shift timer
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -224,6 +273,22 @@ class PlayerCard extends StatelessWidget {
                           ),
                         ] else ...[
                           // On Bench
+                          if (subScore != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.teal.shade700,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'Priority: ${subScore!.round()}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
                           Text(
                             'Total: ${TimeFormatter.formatMmSs(player.totalPlayedSeconds)}',
                             style: TextStyle(
@@ -278,6 +343,9 @@ class PlayerCard extends StatelessWidget {
                           case 'injure':
                             onMarkInjured?.call();
                             break;
+                          case 'skill':
+                            _showChangeSkillDialog(context);
+                            break;
                           case 'add_1m':
                             onAdjustTime?.call(60);
                             break;
@@ -290,6 +358,17 @@ class PlayerCard extends StatelessWidget {
                         }
                       },
                       itemBuilder: (context) => [
+                        if (onUpdateSkill != null)
+                          const PopupMenuItem(
+                            value: 'skill',
+                            child: Row(
+                              children: [
+                                Icon(Icons.star_outline, size: 18, color: Colors.amber),
+                                SizedBox(width: 8),
+                                Text('Adjust Skill Level'),
+                              ],
+                            ),
+                          ),
                         const PopupMenuItem(
                           value: 'injure',
                           child: Row(
@@ -336,6 +415,70 @@ class PlayerCard extends StatelessWidget {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showChangeSkillDialog(BuildContext context) {
+    int currentSkill = player.skill;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: Text('Adjust Skill: ${player.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Skill Level:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.amber.shade700),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star, size: 14, color: Colors.amber),
+                        const SizedBox(width: 4),
+                        Text('$currentSkill / 10', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Slider(
+                value: currentSkill.toDouble(),
+                min: 1,
+                max: 10,
+                divisions: 9,
+                label: '$currentSkill',
+                onChanged: (v) => setDlgState(() => currentSkill = v.round()),
+              ),
+              Text(
+                currentSkill >= 8
+                    ? 'Star Player (Plays longer shifts)'
+                    : (currentSkill >= 4 ? 'Balanced Player' : 'Developing Player'),
+                style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                onUpdateSkill?.call(currentSkill);
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
         ),
       ),
     );

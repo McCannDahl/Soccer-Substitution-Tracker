@@ -3,12 +3,14 @@ class Player {
   final String name;
   final int? number;
   final String? notes;
+  final int skill; // Skill level from 1 to 10 (default: 5)
 
   const Player({
     required this.id,
     required this.name,
     this.number,
     this.notes,
+    this.skill = 5,
   });
 
   Player copyWith({
@@ -16,12 +18,14 @@ class Player {
     String? name,
     int? number,
     String? notes,
+    int? skill,
   }) {
     return Player(
       id: id ?? this.id,
       name: name ?? this.name,
       number: number ?? this.number,
       notes: notes ?? this.notes,
+      skill: skill ?? this.skill,
     );
   }
 
@@ -31,6 +35,7 @@ class Player {
       'name': name,
       'number': number,
       'notes': notes,
+      'skill': skill,
     };
   }
 
@@ -40,6 +45,7 @@ class Player {
       name: json['name'] as String,
       number: json['number'] as int?,
       notes: json['notes'] as String?,
+      skill: (json['skill'] as int?)?.clamp(1, 10) ?? 5,
     );
   }
 

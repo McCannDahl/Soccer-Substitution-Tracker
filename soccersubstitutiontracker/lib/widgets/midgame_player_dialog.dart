@@ -19,6 +19,7 @@ class MidgamePlayerDialogs {
     final nameController = TextEditingController();
     final numberController = TextEditingController();
     bool addToField = false;
+    int guestSkill = 5;
 
     await showDialog(
       context: context,
@@ -55,7 +56,33 @@ class MidgamePlayerDialogs {
                                 style: const TextStyle(fontSize: 11),
                               ),
                             ),
-                            title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            title: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.amber.shade400),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.star, size: 11, color: Colors.amber),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        '${p.skill}',
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                             trailing: ElevatedButton(
                               onPressed: () {
                                 onAddPlayer(p, addToField);
@@ -93,6 +120,40 @@ class MidgamePlayerDialogs {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Skill Level:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.amber.shade700),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star, size: 14, color: Colors.amber),
+                            const SizedBox(width: 3),
+                            Text(
+                              '$guestSkill / 10',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: guestSkill.toDouble(),
+                    min: 1,
+                    max: 10,
+                    divisions: 9,
+                    label: '$guestSkill',
+                    onChanged: (val) => setState(() => guestSkill = val.round()),
+                  ),
+                  const SizedBox(height: 4),
                   SwitchListTile(
                     title: const Text('Place Directly on Field', style: TextStyle(fontSize: 14)),
                     subtitle: const Text('Default is Bench', style: TextStyle(fontSize: 12)),
@@ -117,6 +178,7 @@ class MidgamePlayerDialogs {
                     id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
                     name: name,
                     number: number,
+                    skill: guestSkill,
                   );
                   onAddPlayer(newPlayer, addToField);
                   Navigator.pop(context);

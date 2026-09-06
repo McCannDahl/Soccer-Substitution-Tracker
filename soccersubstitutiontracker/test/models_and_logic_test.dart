@@ -22,6 +22,9 @@ void main() {
       expect(config.subRecommendationMinutes, equals(5)); // 5 min shift target
       expect(config.soundEnabled, isTrue);
       expect(config.vibrationEnabled, isTrue);
+      expect(config.shiftWeight, equals(40));
+      expect(config.totalTimeWeight, equals(50));
+      expect(config.skillWeight, equals(10));
     });
 
     test('custom configuration can be created and serialized', () {
@@ -32,6 +35,9 @@ void main() {
         halftimeMinutes: 5,
         playersOnField: 5,
         subRecommendationMinutes: 7,
+        shiftWeight: 30,
+        totalTimeWeight: 30,
+        skillWeight: 40,
       );
       final json = config.toJson();
       final restored = GameConfig.fromJson(json);
@@ -39,6 +45,9 @@ void main() {
       expect(restored.periods, equals(2));
       expect(restored.periodDurationMinutes, equals(15));
       expect(restored.playersOnField, equals(5));
+      expect(restored.shiftWeight, equals(30));
+      expect(restored.totalTimeWeight, equals(30));
+      expect(restored.skillWeight, equals(40));
     });
   });
 
@@ -169,6 +178,219 @@ void main() {
       final (outgoing, incoming) = session.recommendedSub;
       expect(outgoing?.name, equals('Leo'));
       expect(incoming?.name, equals('Noah'));
+    });
+
+    test('Scenario 1: Player with long shift but low total time is subbed AFTER player with high total time', () {
+      // Default weights: 40% shift, 50% total time, 10% skill
+      // Config target shift: 5 min (300s)
+      final session = GameSession(
+        id: 's_scenario1',
+        teamId: 't1',
+        teamName: 'Tigers',
+        config: const GameConfig(
+          subRecommendationMinutes: 5,
+          shiftWeight: 40,
+          totalTimeWeight: 50,
+          skillWeight: 10,
+        ),
+        periodSecondsRemaining: 300,
+        startTime: DateTime.now(),
+        players: const [
+          // Player A: Long shift (6 min / 360s), but only 6 min total in game
+          GamePlayer(
+            playerId: 'pA',
+            name: 'Player A',
+            status: PlayerStatus.onField,
+            currentShiftSeconds: 360,
+            totalPlayedSeconds: 360,
+            skill: 5,
+          ),
+          // Player B: Normal shift (5 min / 300s), but has 14 min total in game
+          GamePlayer(
+            playerId: 'pB',
+            name: 'Player B',
+            status: PlayerStatus.onField,
+            currentShiftSeconds: 300,
+            totalPlayedSeconds: 840, // 14 minutes
+            skill: 5,
+          ),
+          GamePlayer(
+            playerId: 'pBench',
+            name: 'Bench Kid',
+            status: PlayerStatus.bench,
+            currentBenchSeconds: 300,
+            totalPlayedSeconds: 180,
+            skill: 5,
+          ),
+        ],
+      );
+
+      final scoreA = session.computeSubOutScore(
+        session.players.firstWhere((p) => p.playerId == 'pA'),
+      );
+      final scoreB = session.computeSubOutScore(
+        session.players.firstWhere((p) => p.playerId == 'pB'),
+      );
+
+      // Player B must have a higher score than Player A
+      expect(scoreB > scoreA, isTrue);
+
+      // Therefore, Player B is recommended to sub out first!
+      final (outgoing, _) = session.recommendedSub;
+      expect(outgoing?.name, equals('Player B'));
+    });
+
+    test('Scenario 2: Player with short shift but high total time has elevated sub-out score', () {
+      final session = GameSession(
+        id: 's_scenario2',
+        teamId: 't1',
+        teamName: 'Tigers',
+        config: const GameConfig(
+          subRecommendationMinutes: 5,
+          shiftWeight: 40,
+          totalTimeWeight: 50,
+          skillWeight: 10,
+        ),
+        periodSecondsRemaining: 300,
+        startTime: DateTime.now(),
+        players: const [
+          // Player C: Short shift (3 min / 180s), but has played 18 min total
+          GamePlayer(
+            playerId: 'pC',
+            name: 'Player C',
+            status: PlayerStatus.onField,
+            currentShiftSeconds: 180,
+            totalPlayedSeconds: 1080, // 18 min
+            skill: 5,
+          ),
+          // Player D: Short shift (3 min / 180s), but only 4 min total
+          GamePlayer(
+            playerId: 'pD',
+            name: 'Player D',
+            status: PlayerStatus.onField,
+            currentShiftSeconds: 180,
+            totalPlayedSeconds: 240, // 4 min
+            skill: 5,
+          ),
+          GamePlayer(
+            playerId: 'pBench',
+            name: 'Bench Kid',
+            status: PlayerStatus.bench,
+            currentBenchSeconds: 300,
+            totalPlayedSeconds: 180,
+            skill: 5,
+          ),
+        ],
+      );
+
+      final scoreC = session.computeSubOutScore(
+        session.players.firstWhere((p) => p.playerId == 'pC'),
+      );
+      final scoreD = session.computeSubOutScore(
+        session.players.firstWhere((p) => p.playerId == 'pD'),
+      );
+
+      // Player C's prior heavy play time significantly raises their sub urgency
+      expect(scoreC > scoreD, isTrue);
+      final (outgoing, _) = session.recommendedSub;
+      expect(outgoing?.name, equals('Player C'));
+    });
+
+    test('Scenario 3: Star player (skill 9) stays on field longer than developing player (skill 3)', () {
+      final session = GameSession(
+        id: 's_scenario3',
+        teamId: 't1',
+        teamName: 'Tigers',
+        config: const GameConfig(
+          subRecommendationMinutes: 5,
+          shiftWeight: 40,
+          totalTimeWeight: 50,
+          skillWeight: 10,
+        ),
+        periodSecondsRemaining: 300,
+        startTime: DateTime.now(),
+        players: const [
+          // Star Player (skill 10): 5m shift, 10m total
+          GamePlayer(
+            playerId: 'pStar',
+            name: 'Star Player',
+            status: PlayerStatus.onField,
+            currentShiftSeconds: 300,
+            totalPlayedSeconds: 600,
+            skill: 10,
+          ),
+          // Developing Player (skill 3): 5m shift, 10m total
+          GamePlayer(
+            playerId: 'pDev',
+            name: 'Developing Player',
+            status: PlayerStatus.onField,
+            currentShiftSeconds: 300,
+            totalPlayedSeconds: 600,
+            skill: 3,
+          ),
+          GamePlayer(
+            playerId: 'pBench',
+            name: 'Bench Kid',
+            status: PlayerStatus.bench,
+            currentBenchSeconds: 300,
+            totalPlayedSeconds: 300,
+            skill: 5,
+          ),
+        ],
+      );
+
+      final scoreStar = session.computeSubOutScore(
+        session.players.firstWhere((p) => p.playerId == 'pStar'),
+      );
+      final scoreDev = session.computeSubOutScore(
+        session.players.firstWhere((p) => p.playerId == 'pDev'),
+      );
+
+      // Star player should have a LOWER sub-out score (less urgency to sub out)
+      expect(scoreStar < scoreDev, isTrue);
+
+      // The developing player is rotated out first to rest, keeping the star on field
+      final (outgoing, _) = session.recommendedSub;
+      expect(outgoing?.name, equals('Developing Player'));
+    });
+
+    test('Fair Play preset (0% skill weight) ignores skill differences', () {
+      final session = GameSession(
+        id: 's_fairplay',
+        teamId: 't1',
+        teamName: 'Tigers',
+        config: const GameConfig(
+          shiftWeight: 40,
+          totalTimeWeight: 60,
+          skillWeight: 0, // Fair Play mode
+        ),
+        periodSecondsRemaining: 300,
+        startTime: DateTime.now(),
+        players: const [
+          GamePlayer(
+            playerId: 'pStar',
+            name: 'Star Player',
+            status: PlayerStatus.onField,
+            currentShiftSeconds: 300,
+            totalPlayedSeconds: 600,
+            skill: 10,
+          ),
+          GamePlayer(
+            playerId: 'pDev',
+            name: 'Developing Player',
+            status: PlayerStatus.onField,
+            currentShiftSeconds: 300,
+            totalPlayedSeconds: 600,
+            skill: 1,
+          ),
+        ],
+      );
+
+      final scoreStar = session.computeSubOutScore(session.players[0]);
+      final scoreDev = session.computeSubOutScore(session.players[1]);
+
+      // Under 0% skill weight, identical shift and total time result in identical score
+      expect(scoreStar, closeTo(scoreDev, 0.001));
     });
   });
 
@@ -324,6 +546,39 @@ void main() {
       gameController.adjustPlayerTime('p1', -60); // -1 minute
       p1 = gameController.session!.players.firstWhere((p) => p.playerId == 'p1');
       expect(p1.totalPlayedSeconds, equals(60));
+    });
+
+    test('updatePlayerSkill modifies player skill level mid-game', () {
+      gameController.startGame(
+        team: testTeam,
+        attendingPlayers: testTeam.players,
+        startingFieldPlayerIds: ['p1', 'p2', 'p3', 'p4'],
+        config: const GameConfig(),
+      );
+
+      expect(gameController.session!.players.firstWhere((p) => p.playerId == 'p1').skill, equals(5));
+
+      gameController.updatePlayerSkill('p1', 9);
+      expect(gameController.session!.players.firstWhere((p) => p.playerId == 'p1').skill, equals(9));
+    });
+
+    test('updateStrategyWeights updates config weights and re-saves', () {
+      gameController.startGame(
+        team: testTeam,
+        attendingPlayers: testTeam.players,
+        startingFieldPlayerIds: ['p1', 'p2', 'p3', 'p4'],
+        config: const GameConfig(),
+      );
+
+      gameController.updateStrategyWeights(
+        shiftWeight: 30,
+        totalTimeWeight: 30,
+        skillWeight: 40,
+      );
+
+      expect(gameController.session!.config.shiftWeight, equals(30));
+      expect(gameController.session!.config.totalTimeWeight, equals(30));
+      expect(gameController.session!.config.skillWeight, equals(40));
     });
   });
 

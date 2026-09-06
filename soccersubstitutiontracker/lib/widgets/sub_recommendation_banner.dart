@@ -19,8 +19,10 @@ class SubRecommendationBanner extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final isUrgent = outgoing.currentShiftSeconds >=
-        (session.config.subRecommendationMinutes * 60);
+    final outScore = session.computeSubOutScore(outgoing);
+    final inScore = session.computeSubInScore(incoming);
+    final isUrgent = outScore >= 100 ||
+        outgoing.currentShiftSeconds >= (session.config.subRecommendationMinutes * 60);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -46,7 +48,9 @@ class SubRecommendationBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isUrgent ? 'SUB RECOMMENDED (Shift Target Hit)' : 'Next Rotation Suggestion',
+                  isUrgent
+                      ? 'SUB RECOMMENDED (Score: ${outScore.round()})'
+                      : 'Next Rotation Suggestion (Score: ${outScore.round()})',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -61,13 +65,13 @@ class SubRecommendationBanner extends StatelessWidget {
                     children: [
                       const TextSpan(text: 'OUT: ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
                       TextSpan(
-                        text: '${outgoing.name} (${TimeFormatter.formatMmSs(outgoing.currentShiftSeconds)})',
+                        text: '${outgoing.name} (${outScore.round()} • ${TimeFormatter.formatMmSs(outgoing.currentShiftSeconds)})',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       const TextSpan(text: '  ➔  ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
                       const TextSpan(text: 'IN: ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                       TextSpan(
-                        text: '${incoming.name} (${TimeFormatter.formatMmSs(incoming.totalPlayedSeconds)})',
+                        text: '${incoming.name} (${inScore.round()} • ${TimeFormatter.formatMmSs(incoming.totalPlayedSeconds)})',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],
